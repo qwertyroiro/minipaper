@@ -63,10 +63,10 @@ def download(query, output_path, max_downloads, category, sort_criteria, sort_or
         # Downloads the PDF file and shows a progress bar
         response = requests.get(result.pdf_url, stream=True)
         with tqdm(
-                total=pdf_size,
-                desc=f"{result.published.strftime('%Y-%m-%d')} {result.title[:30] + '...' if len(result.title) > 30 else result.title}",
-                unit="B",
-                unit_scale=True,
+            total=pdf_size,
+            desc=f"{result.published.strftime('%Y-%m-%d')} {result.title[:30] + '...' if len(result.title) > 30 else result.title}",
+            unit="B",
+            unit_scale=True,
         ) as pbar:
             with open(dest_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=1024):
@@ -131,13 +131,13 @@ def summarize(input_path, output_path):
                     .decode("utf-8", errors="ignore")
                     for block in page.get_textpage().extractBLOCKS()
                     if len(
-                    str(block[4])
-                    .strip()
-                    .replace("\n", " ")
-                    .encode("utf-8", errors="ignore")
-                    .decode("utf-8", errors="ignore")
-                )
-                       > 0
+                        str(block[4])
+                        .strip()
+                        .replace("\n", " ")
+                        .encode("utf-8", errors="ignore")
+                        .decode("utf-8", errors="ignore")
+                    )
+                    > 0
                 ]
             )
 
@@ -184,10 +184,12 @@ def summarize(input_path, output_path):
         for chunk in chunks:
             # Calculate the target number of characters for the summary
             magic_number = 3500
-            target_characters = round(
-                (magic_number - sum([len(summary) for summary in summaries]))
-                / (len(chunks) - len(summaries)),
-                -1,
+            target_characters = int(
+                round(
+                    (magic_number - sum([len(summary) for summary in summaries]))
+                    / (len(chunks) - len(summaries)),
+                    -1,
+                )
             )
             # Print a message indicating the current chunk and target number of characters
             print(
@@ -239,10 +241,10 @@ def summarize(input_path, output_path):
 
         # Write the summary to a Markdown file
         with open(
-                os.path.join(
-                    output_path, f"{os.path.basename(file).replace('.pdf', '.md')}"
-                ),
-                "w",
+            os.path.join(
+                output_path, f"{os.path.basename(file).replace('.pdf', '.md')}"
+            ),
+            "w",
         ) as f:
             f.write(summary)
 
@@ -277,12 +279,16 @@ if __name__ == "__main__":
 
     # Check if SUMMERIZE_SYSTEM_PROMPT environment variable is set
     if not os.getenv("SUMMERIZE_SYSTEM_PROMPT"):
-        print("[-] SUMMERIZE_SYSTEM_PROMPT is not set. Use .env file or set it manually.")
+        print(
+            "[-] SUMMERIZE_SYSTEM_PROMPT is not set. Use .env file or set it manually."
+        )
         sys.exit(1)
 
     # Check if SUMMERIZE_HUMAN_PROMPT environment variable is set
     if not os.getenv("SUMMERIZE_HUMAN_PROMPT"):
-        print("[-] SUMMERIZE_HUMAN_PROMPT is not set. Use .env file or set it manually.")
+        print(
+            "[-] SUMMERIZE_HUMAN_PROMPT is not set. Use .env file or set it manually."
+        )
         sys.exit(1)
 
     # Create an argument parser
