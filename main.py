@@ -344,7 +344,7 @@ if __name__ == "__main__":
 
     # Add arguments for the "summarize" command
     parser_summarize.add_argument(
-        "input", type=str, help="PDF file path or directory path"
+        "input", type=str, help="PDF file path or directory path", default="./papers"
     )
     parser_summarize.add_argument(
         "-o",
