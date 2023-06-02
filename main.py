@@ -84,28 +84,42 @@ def download(query, output_path, max_downloads, category, sort_criteria, sort_or
             future.result()
 
 
+# Define a function to summarize PDF files
 def summarize(input_path, output_path):
+    # Create an empty list to store PDF files
     files = []
+
+    # Check if the input path is a directory
     if os.path.isdir(input_path):
+        # If it is a directory, walk through it and find all PDF files
         for root, _, filenames in os.walk(input_path):
             for filename in filenames:
                 if filename.endswith(".pdf"):
                     files.append(os.path.join(root, filename))
+    # If the input path is a file and ends with ".pdf", add it to the list of files
     elif os.path.isfile(input_path) and input_path.endswith(".pdf"):
         files.append(input_path)
+    # If the input path is invalid, print an error message and exit the program
     else:
         print(f"[-] Invalid input path: {input_path}")
         sys.exit(1)
 
+    # Print the number of PDF files found
     print(f"[+] Reading {len(files)} papers")
 
+    # Create the output directory if it does not exist
     os.makedirs(output_path, exist_ok=True)
 
+    # Loop through each PDF file
     for file in files:
+        # Create a Document object from the PDF file
         document = Document(file)
+        # Create an empty string to store the Markdown summary
         markdown = ""
 
+        # Define a function to extract the content of a page
         def get_page_content(page):
+            # Extract the text blocks from the page and join them into a single string
             return " ".join(
                 [
                     str(block[4])
@@ -117,34 +131,43 @@ def summarize(input_path, output_path):
                     .decode("utf-8", errors="ignore")
                     for block in page.get_textpage().extractBLOCKS()
                     if len(
-                        str(block[4])
-                        .strip()
-                        .replace("\n", " ")
-                        .encode("utf-8", errors="ignore")
-                        .decode("utf-8", errors="ignore")
-                    )
-                    > 0
+                    str(block[4])
+                    .strip()
+                    .replace("\n", " ")
+                    .encode("utf-8", errors="ignore")
+                    .decode("utf-8", errors="ignore")
+                )
+                       > 0
                 ]
             )
 
+        # Loop through each section in the table of contents
         for section in document.get_toc():
+            # Add a Markdown heading for the section
             markdown += f"## {section[1]}\n\n"
+            # Add the content of the section to the Markdown summary
             markdown += f"{get_page_content(document[section[2] - 1])}\n\n"
 
+        # If the Markdown summary is still empty, summarize the entire document
         if len(markdown) < 1:
             for page in document:
                 markdown += f"{get_page_content(page)}\n\n"
 
+        # Print a message indicating that the text has been extracted from the PDF file
         print(f"[+] Extracted text from {file}")
 
+        # Define the chunk size and overlap for the summarization
         chunk_size = 3500  # 3500
         chunk_overlap = 400  # 400
+        # Split the Markdown summary into chunks
         chunks = CharacterTextSplitter.from_tiktoken_encoder(
             separator=".", chunk_size=chunk_size, chunk_overlap=chunk_overlap
         ).split_text(markdown)
 
+        # Print a message indicating the number of chunks
         print(f"[+] Split text into {len(chunks)} chunks")
 
+        # Create a ChatOpenAI object for the summarization
         chat = ChatOpenAI(
             temperature=0,
             openai_api_key=os.getenv("OPENAI_API_KEY"),
@@ -154,19 +177,24 @@ def summarize(input_path, output_path):
             callbacks=[StreamingStdOutCallbackHandler()],
         )
 
+        # Create an empty list to store the summaries
         summaries = []
 
+        # Loop through each chunk and summarize it
         for chunk in chunks:
+            # Calculate the target number of characters for the summary
             magic_number = 3500
             target_characters = round(
                 (magic_number - sum([len(summary) for summary in summaries]))
                 / (len(chunks) - len(summaries)),
                 -1,
             )
+            # Print a message indicating the current chunk and target number of characters
             print(
                 f"[+] Summarizing {len(summaries) + 1}/{len(chunks)} chunk (target: {target_characters} characters): {chunk[:50]}..."
             )
 
+            # Use the ChatOpenAI object to generate a summary
             response = chat(
                 [
                     SystemMessage(content=os.getenv("CHUNK_SYSTEM_PROMPT")),
@@ -177,12 +205,15 @@ def summarize(input_path, output_path):
                     ),
                 ]
             )
+            # Add the summary to the list of summaries
             summaries.append(response.content)
             print()
             print()
 
+        # Print a message indicating the final summarization
         print(f"[+] Final summarizing...")
 
+        # Use the ChatOpenAI object to generate a summary of all the chunks
         response = chat(
             [
                 SystemMessage(content=os.getenv("SUMMERIZE_SYSTEM_PROMPT")),
@@ -203,16 +234,19 @@ def summarize(input_path, output_path):
         print()
         print()
 
+        # Get the final summary from the response
         summary = response.content
 
+        # Write the summary to a Markdown file
         with open(
-            os.path.join(
-                output_path, f"{os.path.basename(file).replace('.pdf', '.md')}"
-            ),
-            "w",
+                os.path.join(
+                    output_path, f"{os.path.basename(file).replace('.pdf', '.md')}"
+                ),
+                "w",
         ) as f:
             f.write(summary)
 
+        # Print a message indicating that the PDF file has been summarized
         print(f"[+] Summarized {file}")
 
 
