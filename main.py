@@ -241,7 +241,7 @@ def summarize(input_path, output_path):
             os.path.join(
                 output_path, f"{os.path.basename(file).replace('.pdf', '.md')}"
             ),
-            "w",
+            "w",encoding="utf-8",
         ) as f:
             f.write(summary)
 
