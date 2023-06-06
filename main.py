@@ -49,7 +49,7 @@ def download(query, output_path, max_downloads, category, sort_criteria, sort_or
             output_path,
             f"{result.get_short_id()}_{result.title}.pdf".replace("/", "_").replace(
                 " ", "_"
-            ),
+            ).replace(":", "_"),
         )
 
         # If the file already exists, skips the download
@@ -153,9 +153,6 @@ def summarize(input_path, output_path):
             for page in document:
                 markdown += f"{get_page_content(page)}\n\n"
 
-        # Print a message indicating that the text has been extracted from the PDF file
-        print(f"[+] Extracted text from {file}")
-
         # Define the chunk size and overlap for the summarization
         chunk_size = 3500  # 3500
         chunk_overlap = 400  # 400
@@ -165,7 +162,7 @@ def summarize(input_path, output_path):
         ).split_text(markdown)
 
         # Print a message indicating the number of chunks
-        print(f"[+] Split text into {len(chunks)} chunks")
+        print(f"[+] Split text into {len(chunks)} chunks from {file}")
 
         # Create a ChatOpenAI object for the summarization
         chat = ChatOpenAI(
@@ -188,7 +185,7 @@ def summarize(input_path, output_path):
                 round(
                     (magic_number - sum([len(summary) for summary in summaries]))
                     / (len(chunks) - len(summaries)),
-                    -1,
+                    -2,
                 )
             )
             # Print a message indicating the current chunk and target number of characters
@@ -244,7 +241,7 @@ def summarize(input_path, output_path):
             os.path.join(
                 output_path, f"{os.path.basename(file).replace('.pdf', '.md')}"
             ),
-            "w",
+            "w",encoding="utf-8",
         ) as f:
             f.write(summary)
 
