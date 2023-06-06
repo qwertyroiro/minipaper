@@ -49,7 +49,7 @@ def download(query, output_path, max_downloads, category, sort_criteria, sort_or
             output_path,
             f"{result.get_short_id()}_{result.title}.pdf".replace("/", "_").replace(
                 " ", "_"
-            ),
+            ).replace(":", "_"),
         )
 
         # If the file already exists, skips the download
