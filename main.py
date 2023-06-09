@@ -2,18 +2,20 @@
 
 import argparse
 import os
+import re
 import sys
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import arxiv
 import requests
+from dotenv import load_dotenv
 from fitz import Document
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.text_splitter import CharacterTextSplitter
 from tqdm import tqdm
-from dotenv import load_dotenv
 
 
 # Defines a function to download papers from arXiv
@@ -47,9 +49,7 @@ def download(query, output_path, max_downloads, category, sort_criteria, sort_or
         # Constructs the destination path for the downloaded file
         dest_path = os.path.join(
             output_path,
-            f"{result.get_short_id()}_{result.title}.pdf".replace("/", "_").replace(
-                " ", "_"
-            ).replace(":", "_"),
+            f"{result.get_short_id()}_{result.title}.pdf".replace("/", "_").replace(" ", "_").replace(":", "_"),
         )
 
         # If the file already exists, skips the download
@@ -57,9 +57,7 @@ def download(query, output_path, max_downloads, category, sort_criteria, sort_or
             return
 
         # Gets the size of the PDF file
-        pdf_size = int(
-            requests.request("head", result.pdf_url).headers["Content-Length"]
-        )
+        pdf_size = int(requests.request("head", result.pdf_url).headers["Content-Length"])
         # Downloads the PDF file and shows a progress bar
         response = requests.get(result.pdf_url, stream=True)
         with tqdm(
@@ -75,13 +73,22 @@ def download(query, output_path, max_downloads, category, sort_criteria, sort_or
 
     # Uses a thread pool to download the papers in parallel
     with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(download_file, result, output_path) for result in results
-        ]
+        futures = [executor.submit(download_file, result, output_path) for result in results]
 
         # Waits for all downloads to complete
         for future in as_completed(futures):
             future.result()
+
+
+def remove_extra_spaces(target):
+    non_ascii_pattern = r"[^\x00-\x7F]"
+    non_ascii_chars = re.findall(non_ascii_pattern, target)
+
+    for char in non_ascii_chars:
+        char_pattern = re.escape(char) + r"\s+"
+        target = re.sub(char_pattern, char, target)
+
+    return target
 
 
 # Define a function to summarize PDF files
@@ -118,28 +125,34 @@ def summarize(input_path, output_path):
         markdown = ""
 
         # Define a function to extract the content of a page
+
         def get_page_content(page):
             # Extract the text blocks from the page and join them into a single string
-            return " ".join(
-                [
-                    str(block[4])
-                    .strip()
-                    .replace("\n", " ")
-                    .replace("\t", " ")
-                    .replace("  ", " ")
-                    .encode("utf-8", errors="ignore")
-                    .decode("utf-8", errors="ignore")
-                    for block in page.get_textpage().extractBLOCKS()
-                    if len(
-                        str(block[4])
-                        .strip()
-                        .replace("\n", " ")
-                        .encode("utf-8", errors="ignore")
-                        .decode("utf-8", errors="ignore")
+            return unicodedata.normalize(
+                "NFKC",
+                remove_extra_spaces(
+                    " ".join(
+                        [
+                            str(block[4])
+                            .strip()
+                            .replace("\n", " ")
+                            .replace("\t", " ")
+                            .replace("  ", " ")
+                            .encode("utf-8", errors="ignore")
+                            .decode("utf-8", errors="ignore")
+                            for block in page.get_textpage().extractBLOCKS()
+                            if len(
+                                str(block[4])
+                                .strip()
+                                .replace("\n", " ")
+                                .encode("utf-8", errors="ignore")
+                                .decode("utf-8", errors="ignore")
+                            )
+                            > 0
+                        ]
                     )
-                    > 0
-                ]
-            )
+                ),
+            ).encode("utf-8", errors="ignore").decode("utf-8", errors="ignore")
 
         # Loop through each section in the table of contents
         for section in document.get_toc():
@@ -183,8 +196,7 @@ def summarize(input_path, output_path):
             magic_number = 3500
             target_characters = int(
                 round(
-                    (magic_number - sum([len(summary) for summary in summaries]))
-                    / (len(chunks) - len(summaries)),
+                    (magic_number - sum([len(summary) for summary in summaries])) / (len(chunks) - len(summaries)),
                     -2,
                 )
             )
@@ -219,12 +231,7 @@ def summarize(input_path, output_path):
                 HumanMessage(
                     content=os.getenv("SUMMERIZE_HUMAN_PROMPT").replace(
                         "{summaries}",
-                        "\n\n".join(
-                            [
-                                f"## Summary {i + 1}\n\n{summary}"
-                                for i, summary in enumerate(summaries)
-                            ]
-                        ),
+                        "\n\n".join([f"## Summary {i + 1}\n\n{summary}" for i, summary in enumerate(summaries)]),
                     )
                 ),
             ]
@@ -238,10 +245,9 @@ def summarize(input_path, output_path):
 
         # Write the summary to a Markdown file
         with open(
-            os.path.join(
-                output_path, f"{os.path.basename(file).replace('.pdf', '.md')}"
-            ),
-            "w",encoding="utf-8",
+            os.path.join(output_path, f"{os.path.basename(file).replace('.pdf', '.md')}"),
+            "w",
+            encoding="utf-8",
         ) as f:
             f.write(summary)
 
@@ -276,16 +282,12 @@ if __name__ == "__main__":
 
     # Check if SUMMERIZE_SYSTEM_PROMPT environment variable is set
     if not os.getenv("SUMMERIZE_SYSTEM_PROMPT"):
-        print(
-            "[-] SUMMERIZE_SYSTEM_PROMPT is not set. Use .env file or set it manually."
-        )
+        print("[-] SUMMERIZE_SYSTEM_PROMPT is not set. Use .env file or set it manually.")
         sys.exit(1)
 
     # Check if SUMMERIZE_HUMAN_PROMPT environment variable is set
     if not os.getenv("SUMMERIZE_HUMAN_PROMPT"):
-        print(
-            "[-] SUMMERIZE_HUMAN_PROMPT is not set. Use .env file or set it manually."
-        )
+        print("[-] SUMMERIZE_HUMAN_PROMPT is not set. Use .env file or set it manually.")
         sys.exit(1)
 
     # Create an argument parser
@@ -306,9 +308,7 @@ if __name__ == "__main__":
         default="./papers",
         help="Download directory path (default: ./papers)",
     )
-    parser_download.add_argument(
-        "-m", "--max", type=int, default=20, help="Max download count (default: 20)"
-    )
+    parser_download.add_argument("-m", "--max", type=int, default=20, help="Max download count (default: 20)")
     parser_download.add_argument(
         "-c",
         "--category",
@@ -340,9 +340,7 @@ if __name__ == "__main__":
     parser_summarize = subparsers.add_parser("summarize")
 
     # Add arguments for the "summarize" command
-    parser_summarize.add_argument(
-        "input", type=str, help="PDF file path or directory path", default="./papers"
-    )
+    parser_summarize.add_argument("input", type=str, help="PDF file path or directory path", default="./papers")
     parser_summarize.add_argument(
         "-o",
         "--output",
@@ -359,9 +357,7 @@ if __name__ == "__main__":
 
     # Call the appropriate function based on the command
     if args.handler == "download":
-        download(
-            args.query, args.output, args.max, args.category, args.sort, args.order
-        )
+        download(args.query, args.output, args.max, args.category, args.sort, args.order)
     elif args.handler == "summarize":
         summarize(args.input, args.output)
     else:
