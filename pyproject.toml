@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "minipaper"
+version = "0.1.0"
+description = "An in-house tool that automatically downloads articles and summarizes them in GPT"
+authors = ["qwertyroiro <roiro8562@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+arxiv = "^1.4.7"
+langchain = "^0.0.188"
+tqdm = "^4.65.0"
+document = "^1.0"
+pymupdf = "^1.22.3"
+python-dotenv = "^1.0.0"
+tiktoken = "^0.4.0"
+openai = "^0.27.7"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+
+[tool.black]
+line-length = 120
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
