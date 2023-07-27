@@ -6,6 +6,5 @@ minipaper.iml
 .env.bak2
 poetry.lock
 *.pdf
-*.md
 .DS_Store
 .python-version
