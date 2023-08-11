@@ -21,10 +21,10 @@ poetry install
 ### 2. Copy config
 
 ```bash
-cp .env.bak2.example .env.bak2
-sed -i 's/OPENAI_API_KEY=""/OPENAI_API_KEY="Insert your OpenAI API key here!"/g' .env.bak2
+cp .env.example .env
+sed -i 's/OPENAI_API_KEY=""/OPENAI_API_KEY="Insert your OpenAI API key here!"/g' .env
 # If you want to use GPT-4 and have access to it, run the following command.
-# sed -i 's/OPENAI_MODEL_NAME="gpt-3.5-turbo"/OPENAI_MODEL_NAME="gpt-4"/g' .env.bak2
+# sed -i 's/OPENAI_MODEL_NAME="gpt-3.5-turbo"/OPENAI_MODEL_NAME="gpt-4"/g' .env
 ```
 
 ### 3. Run
